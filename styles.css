@@ -1,0 +1,47 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.board-container {
+    text-align: center;
+}
+
+h1 {
+    margin-bottom: 20px;
+}
+
+table {
+    width: 80%;
+    border-collapse: collapse;
+    background-color: #000;
+    color: #fff;
+}
+
+th, td {
+    padding: 10px;
+    border: 1px solid #444;
+    text-align: center;
+}
+
+th {
+    background-color: #222;
+    font-size: 1.2em;
+}
+
+tr:nth-child(even) {
+    background-color: #333;
+}
+
+tr.cancelled {
+    color: red;
+}
+
+tr.delayed {
+    color: orange;
+}
