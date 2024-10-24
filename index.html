@@ -3,27 +3,251 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time Departure Board</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Digital Train Departure Board</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(to bottom right, #000000, #1a1a1a);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .departure-board {
+            width: 90%;
+            max-width: 1200px;
+            background-color: #000;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #FFD700;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2rem;
+            color: #FFD700;
+        }
+
+        .clock {
+            font-size: 1.5rem;
+            color: #FFD700;
+        }
+
+        .table {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .table-header, .table-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+        }
+
+        .table-header {
+            color: #FFD700;
+            font-weight: bold;
+            border-bottom: 2px solid #FFD700;
+        }
+
+        .table-row {
+            transition: background-color 0.3s;
+        }
+
+        .table-row:hover {
+            background-color: #1a1a1a;
+        }
+
+        .column {
+            flex: 1;
+            text-align: center;
+        }
+
+        .column:nth-child(1) {
+            flex: 0.5;
+        }
+
+        .column:nth-child(4) {
+            flex: 0.75;
+        }
+
+        .status.on-time {
+            color: #FFD700;
+        }
+
+        .status.delayed {
+            color: #FF4500;
+        }
+
+        .status.arrived {
+            color: #32CD32;
+        }
+
+        .zoom-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            font-size: 2rem;
+            color: #fff;
+        }
+
+        .zoom-overlay button {
+            background-color: #FFD700;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .zoom-enabled:hover .zoom-overlay {
+            display: flex;
+        }
+
+        .page-navigation {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1rem;
+            color: #FFF;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .clock {
+                font-size: 1.2rem;
+            }
+
+            .table-row {
+                font-size: 0.9rem;
+            }
+
+            .zoom-overlay {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="board-container">
-        <h1>Real-Time Departure Board</h1>
-        <table id="departure-board">
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Destination</th>
-                    <th>Platform</th>
-                    <th>Expected</th>
-                </tr>
-            </thead>
-            <tbody id="board-content">
-                <!-- Real-time data will be injected here -->
-            </tbody>
-        </table>
+    <div class="departure-board">
+        <div class="header">
+            <h1>Train Departure Board</h1>
+            <div class="clock" id="clock"></div>
+        </div>
+
+        <div class="table" id="table">
+            <div class="table-header">
+                <div class="column">Time</div>
+                <div class="column">Destination</div>
+                <div class="column">Platform</div>
+                <div class="column">Expected</div>
+            </div>
+            <!-- Dynamic Rows -->
+        </div>
+
+        <div class="page-navigation" id="page-nav"></div>
+
+        <div class="zoom-overlay">
+            <div>Press RT to Zoom</div>
+            <button onclick="closeZoom()">Close Zoom</button>
+        </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        const trainData = [
+            { time: '08:30', destination: 'King\'s Cross', platform: '5', expected: 'On time' },
+            { time: '09:00', destination: 'Edinburgh', platform: '3', expected: 'Delayed' },
+            { time: '09:15', destination: 'York', platform: '-', expected: 'On time' },
+            { time: '09:45', destination: 'Leeds', platform: '4', expected: 'On time' },
+            { time: '10:00', destination: 'Manchester', platform: '7', expected: 'Arrived' },
+            { time: '10:30', destination: 'Glasgow', platform: '2', expected: 'On time' },
+        ];
+
+        let currentPage = 1;
+        const rowsPerPage = 5;
+
+        function displayClock() {
+            const clock = document.getElementById('clock');
+            const now = new Date();
+            clock.innerHTML = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function displayTable(page = 1) {
+            const table = document.getElementById('table');
+            const pageNav = document.getElementById('page-nav');
+            const start = (page - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const rows = trainData.slice(start, end);
+
+            table.innerHTML = `
+                <div class="table-header">
+                    <div class="column">Time</div>
+                    <div class="column">Destination</div>
+                    <div class="column">Platform</div>
+                    <div class="column">Expected</div>
+                </div>
+            `;
+
+            rows.forEach(row => {
+                const expectedClass = row.expected.toLowerCase().replace(' ', '-');
+                table.innerHTML += `
+                    <div class="table-row">
+                        <div class="column">${row.time}</div>
+                        <div class="column">${row.destination}</div>
+                        <div class="column">${row.platform}</div>
+                        <div class="column status ${expectedClass}">${row.expected}</div>
+                    </div>
+                `;
+            });
+
+            const totalPages = Math.ceil(trainData.length / rowsPerPage);
+            pageNav.innerHTML = `Page ${page} of ${totalPages}`;
+        }
+
+        function updateTable() {
+            // Simulate delay updates dynamically
+            trainData.forEach(train => {
+                if (train.expected === 'On time' && Math.random() > 0.9) {
+                    train.expected = 'Delayed';
+                } else if (train.expected === 'Delayed' && Math.random() > 0.8) {
+                    train.expected = 'Arrived';
+                }
+            });
+
+            displayTable(currentPage);
+        }
+
+        function closeZoom() {
+            document.querySelector('.zoom-overlay').style.display = 'none';
+        }
+
+        setInterval(displayClock, 1000);
+        setInterval(updateTable, 60000);
+        displayClock();
+        displayTable();
+    </script>
 </body>
 </html>
